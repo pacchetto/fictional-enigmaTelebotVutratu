@@ -1,15 +1,24 @@
 import os
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
-from aiogram import Bot
+import telebot
+from telebot import types
 from dotenv import load_dotenv
-from telebot import types  # Додали для кнопок
 import sqlite3
 import datetime
 
+# Завантажуємо змінні з .env (для локального запуску)
 load_dotenv()
+
+# Отримуємо токен
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-bot = Bot(token=BOT_TOKEN)
+
+# Захист: якщо токен не знайдено, програма видасть зрозумілу помилку
+if not BOT_TOKEN:
+    raise ValueError("Помилка: BOT_TOKEN не знайдено у змінних оточення!")
+
+# Створюємо бота ПРАВИЛЬНО через telebot
+bot = telebot.TeleBot(BOT_TOKEN)
 
 # Назва файлу бази даних
 DB_NAME = 'finance_v2.db'
@@ -36,12 +45,11 @@ init_db()
 
 # --- ДОПОМІЖНА ФУНКЦІЯ: КЛАВІАТУРА ---
 def main_menu():
-    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)  # resize=True робить кнопки меншими
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn_stats = types.KeyboardButton("📊 Статистика")
     btn_help = types.KeyboardButton("ℹ️ Інструкція")
     btn_reset = types.KeyboardButton("🗑 Скинути все")
 
-    # Додаємо кнопки: Статистика та Інструкція в один ряд, Скинути - в другий
     markup.add(btn_stats, btn_help)
     markup.add(btn_reset)
     return markup
@@ -55,7 +63,7 @@ def start(message):
                      "Привіт! Я совість :D 🚀\n"
                      "Я вмію рахувати витрати за поточний місяць.\n\n"
                      "Щоб записати витрату, просто напиши: `100 їжа`",
-                     reply_markup=main_menu())  # Додаємо клавіатуру
+                     reply_markup=main_menu())
 
 
 # Обробка кнопки "Інструкція"
@@ -69,7 +77,7 @@ def show_help(message):
                      parse_mode="Markdown")
 
 
-# 2. Статистика (спрацьовує і на команду, і на кнопку)
+# 2. Статистика
 @bot.message_handler(commands=['stats'])
 @bot.message_handler(func=lambda message: message.text == "📊 Статистика")
 def get_month_stats(message):
@@ -96,7 +104,7 @@ def get_month_stats(message):
     total_month = 0
 
     for row in results:
-        category = row[0].capitalize()  # Робимо першу літеру великою для краси
+        category = row[0].capitalize()
         sum_amount = row[1]
         text += f"▫️ {category}: {sum_amount:.2f} грн\n"
         total_month += sum_amount
@@ -106,7 +114,7 @@ def get_month_stats(message):
     bot.send_message(message.chat.id, text, parse_mode="Markdown")
 
 
-# Обробка скидання (команда і кнопка)
+# Обробка скидання
 @bot.message_handler(commands=['reset'])
 @bot.message_handler(func=lambda message: message.text == "🗑 Скинути все")
 def reset_db(message):
@@ -118,10 +126,9 @@ def reset_db(message):
     bot.send_message(message.chat.id, "🗑 Базу очищено! Починаємо з чистого аркуша.")
 
 
-# 3. Додавання витрати (ловле весь інший текст)
+# 3. Додавання витрати
 @bot.message_handler(content_types=['text'])
 def add_expense(message):
-    # Перевірка, щоб випадково не обробляти текст кнопок, якщо нові додаси
     if message.text in ["📊 Статистика", "ℹ️ Інструкція", "🗑 Скинути все"]:
         return
 
@@ -158,17 +165,15 @@ def keep_alive():
             self.end_headers()
             self.wfile.write(b"Bot is running!")
 
-        # Вимикаємо зайве логування запитів Render
         def log_message(self, format, *args):
             pass
 
-    # Render автоматично видає порт через змінну оточення PORT
     port = int(os.environ.get("PORT", 8080))
     server = HTTPServer(('', port), SimpleHandler)
     server.serve_forever()
 
 
-# Запускаємо сервер в окремому потоці, щоб він не блокував бота
 threading.Thread(target=keep_alive, daemon=True).start()
 
+# Запуск бота
 bot.polling(none_stop=True)
