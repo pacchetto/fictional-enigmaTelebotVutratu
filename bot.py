@@ -1,10 +1,14 @@
-import telebot
+import os
+
+from aiogram import Bot
+from dotenv import load_dotenv
 from telebot import types  # Додали для кнопок
 import sqlite3
 import datetime
 
-# --- ВСТАВ СЮДИ СВІЙ ТОКЕН ---
-bot = telebot.TeleBot('8565334406:AAHozNyYYZixce4ymx5UuS1KH2uwd91ArdI')
+load_dotenv()
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+bot = Bot(token=BOT_TOKEN)
 
 # Назва файлу бази даних
 DB_NAME = 'finance_v2.db'
