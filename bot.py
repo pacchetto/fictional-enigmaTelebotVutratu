@@ -1,5 +1,6 @@
 import os
-
+import threading
+from http.server import BaseHTTPRequestHandler, HTTPServer
 from aiogram import Bot
 from dotenv import load_dotenv
 from telebot import types  # Додали для кнопок
@@ -148,5 +149,26 @@ def add_expense(message):
     except ValueError:
         bot.send_message(message.chat.id, "⚠️ Сума має бути числом! (наприклад: 100 або 10.50)")
 
+
+# --- ФЕЙКОВИЙ СЕРВЕР ДЛЯ RENDER ---
+def keep_alive():
+    class SimpleHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            self.send_response(200)
+            self.end_headers()
+            self.wfile.write(b"Bot is running!")
+
+        # Вимикаємо зайве логування запитів Render
+        def log_message(self, format, *args):
+            pass
+
+    # Render автоматично видає порт через змінну оточення PORT
+    port = int(os.environ.get("PORT", 8080))
+    server = HTTPServer(('', port), SimpleHandler)
+    server.serve_forever()
+
+
+# Запускаємо сервер в окремому потоці, щоб він не блокував бота
+threading.Thread(target=keep_alive, daemon=True).start()
 
 bot.polling(none_stop=True)
